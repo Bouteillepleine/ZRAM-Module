@@ -9,10 +9,10 @@ log() {
 }
 
 log "======================================="
-log "====== 服务启动：$(date '+%Y-%m-%d %H:%M:%S') ======"
+log "====== Service Start: $(date '+%Y-%m-%d %H:%M:%S') ======"
 log "======================================="
 
-# ---------- 读取配置 ----------
+# ---------- Read Configuration ----------
 if [ -f "$CONFIG_FILE" ]; then
     . "$CONFIG_FILE"
 else
@@ -20,103 +20,103 @@ else
     ZRAM_SIZE="8589934592"
 fi
 
-log "读取配置: ZRAM_ALGO=$ZRAM_ALGO, ZRAM_SIZE=$ZRAM_SIZE"
-log "=== ZRAM-Module 服务启动 ==="
-log "等待系统初始化完成..."
+log "Read Configuration: ZRAM_ALGO=$ZRAM_ALGO, ZRAM_SIZE=$ZRAM_SIZE"
+log "=== ZRAM-Module Service Start ==="
+log "Wait for System Initialization to Complete..."
 sleep 30
 
-log "加载zstdn.ko..."
+log "Load zstdn.ko..."
 if insmod $MODDIR/zram/zstdn.ko 2>>"$LOG_FILE"; then
-  log "zstdn.ko 加载成功"
+  log "zstdn.ko Loaded Successfully"
 else
-  log "zstdn.ko 加载失败"
+  log "zstdn.ko Load Failed"
 fi
 
 log "swapoff /dev/block/zram0"
 if swapoff /dev/block/zram0 2>>"$LOG_FILE"; then
-  log "swapoff 成功"
+  log "swapoff Successful"
 else
-  log "swapoff 失败或无效"
+  log "swapoff Failed or Invalid"
 fi
 
 log "rmmod zram"
 if rmmod zram 2>>"$LOG_FILE"; then
-  log "rmmod zram 成功"
+  log "rmmod zram Successful"
 else
-  log "rmmod zram 失败或为内建"
+  log "rmmod zram Failed or Built-in"
 fi
 
-log "等待5秒..."
+log "Wait 5 Seconds..."
 sleep 5
 
 log "insmod zram.ko"
 if insmod $MODDIR/zram/zram.ko 2>>"$LOG_FILE"; then
-  log "zram.ko 加载成功"
+  log "zram.ko Loaded Successfully"
 else
-  log "zram.ko 加载失败"
+  log "zram.ko Load Failed"
 fi
 
-log "等待5秒..."
+log "Wait 5 Seconds..."
 sleep 5
 
 log "zram0 reset"
 if echo '1' > /sys/block/zram0/reset 2>>"$LOG_FILE"; then
-  log "zram0 reset 成功"
+  log "zram0 reset Successful"
 else
-  log "zram0 reset 失败"
+  log "zram0 reset Failed"
 fi
 
 log "zram0 disksize 0"
 if echo '0' > /sys/block/zram0/disksize 2>>"$LOG_FILE"; then
-  log "zram0 disksize 清零成功"
+  log "zram0 disksize Cleared Successfully"
 else
-  log "zram0 disksize 清零失败（可忽略）"
+  log "zram0 disksize Clear Failed (Can Be Ignored)"
 fi
 
 log "zram0 max_comp_streams 8"
 if echo '8' > /sys/block/zram0/max_comp_streams 2>>"$LOG_FILE"; then
-  log "zram0 max_comp_streams 设置成功"
+  log "zram0 max_comp_streams Set Successfully"
 else
-  log "zram0 max_comp_streams 设置失败"
+  log "zram0 max_comp_streams Set Failed"
 fi
 
-log "设置压缩算法 $ZRAM_ALGO"
+log "Set Compression Algorithm $ZRAM_ALGO"
 if echo "$ZRAM_ALGO" > /sys/block/zram0/comp_algorithm 2>>"$LOG_FILE"; then
-  log "压缩算法已设置 $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
+  log "Compression Algorithm Set $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
 else
-  log "压缩算法设置失败，当前: $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
+  log "Compression Algorithm Set Failed, Current: $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
 fi
 
 log "zram0 disksize $ZRAM_SIZE"
 if echo "$ZRAM_SIZE" > /sys/block/zram0/disksize 2>>"$LOG_FILE"; then
-  log "zram0 disksize 设置成功"
+  log "zram0 disksize Set Successfully"
 else
-  log "zram0 disksize 设置失败"
+  log "zram0 disksize Set Failed"
 fi
 
 log "mkswap /dev/block/zram0"
 if mkswap /dev/block/zram0 > /dev/null 2>>"$LOG_FILE"; then
-  log "mkswap 成功"
+  log "mkswap Successful"
 else
-  log "mkswap 失败"
+  log "mkswap Failed"
 fi
 
 log "swapon /dev/block/zram0"
 if swapon /dev/block/zram0 > /dev/null 2>>"$LOG_FILE"; then
-  log "swapon 成功"
+  log "swapon Successful"
 else
-  log "swapon 失败"
+  log "swapon Failed"
 fi
 
-# ------------- 重点优化：最后再清理多余zram设备 -------------
-log "=== 最后清理多余zram设备（zram1/zram2…） ==="
+# ------------- Key Optimization: Finally Clean Up Redundant ZRAM Devices -------------
+log "=== Finally Clean Up Redundant ZRAM Devices (zram1/zram2…) ==="
 for zdev in /dev/block/zram*; do
   [ "$zdev" = "/dev/block/zram0" ] && continue
   [ -b "$zdev" ] || continue
-  log "处理 $zdev ..."
+  log "Process $zdev ..."
   i=0
   while grep -qw "$zdev" /proc/swaps && [ $i -lt 5 ]; do
-    log "swapoff $zdev (第$((i+1))次)"
+    log "swapoff $zdev (Attempt $((i+1)))"
     swapoff "$zdev"
     sleep 1
     i=$((i+1))
@@ -125,21 +125,21 @@ for zdev in /dev/block/zram*; do
   [ -e "/sys/block/$zname/reset" ] && echo 1 > "/sys/block/$zname/reset" && log "reset $zname"
   [ -e "/sys/block/$zname/hot_remove" ] && echo 1 > "/sys/block/$zname/hot_remove" && log "hot_remove $zname"
 done
-log "多余zram设备清理完成"
+log "Redundant ZRAM Devices Cleanup Completed"
 
-# --------- ZRAM与内存状态日志 ---------
-log "--------- ZRAM与内存状态 ---------"
-log "zram0 当前支持算法: $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
+# --------- ZRAM and Memory Status Log ---------
+log "--------- ZRAM and Memory Status ---------"
+log "zram0 Currently Supported Algorithms: $(cat /sys/block/zram0/comp_algorithm 2>/dev/null)"
 
 if grep -q zram0 /proc/swaps; then
-  awk '/zram0/ {printf "zram0 Swap: 设备=%s 类型=%s 总=%.2fGiB 已用=%.2fMiB 优先级=%s", $1, $2, $3/1048576, $4/1024, $5}' /proc/swaps | while read line; do log "$line"; done
+  awk '/zram0/ {printf "zram0 Swap: Device=%s Type=%s Total=%.2fGiB Used=%.2fMiB Priority=%s", $1, $2, $3/1048576, $4/1024, $5}' /proc/swaps | while read line; do log "$line"; done
 else
-  log "zram0 不在 /proc/swaps"
+  log "zram0 Not in /proc/swaps"
 fi
 
-MEM_LINE="$(free -h | awk '/^Mem:/ {printf "Mem: 总=%s 已用=%s 可用=%s", $2, $3, $7}')"
-SWAP_LINE="$(free -h | awk '/^Swap:/ {printf "Swap: 总=%s 已用=%s 可用=%s", $2, $3, $4}')"
+MEM_LINE="$(free -h | awk '/^Mem:/ {printf "Mem: Total=%s Used=%s Available=%s", $2, $3, $7}')"
+SWAP_LINE="$(free -h | awk '/^Swap:/ {printf "Swap: Total=%s Used=%s Available=%s", $2, $3, $4}')"
 log "$MEM_LINE"
 log "$SWAP_LINE"
 log "----------------------------------"
-log "=== ZRAM-Module 服务完成 ==="
+log "=== ZRAM-Module Service Completed ==="
